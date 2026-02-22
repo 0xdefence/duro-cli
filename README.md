@@ -165,7 +165,7 @@ foundryup
 ```
 
 ```bash
-git clone https://github.com/wifimoney/duro-cli.git
+git clone https://github.com/0xdefence/duro-cli.git
 cd duro-cli
 pip install -e .
 ```
