@@ -1,0 +1,31 @@
+name: replay-suite
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install DURO
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Doctor
+        run: duro doctor --json
+
+      - name: Replay suite
+        run: python scripts/ci_replay_check.py

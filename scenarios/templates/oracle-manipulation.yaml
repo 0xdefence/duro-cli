@@ -1,0 +1,16 @@
+id: oracle-manipulation-template
+class_type: oracle_manipulation
+chain: ethereum
+rpc_env: MAINNET_RPC_URL
+block: 19750000
+target:
+  protocol: ExampleProtocol
+  contracts: ["0x0000000000000000000000000000000000000001"]
+tokens:
+  USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+attacker:
+  address: "0x000000000000000000000000000000000000BEEF"
+success_criteria:
+  - type: balance_increase
+    token: USDC
+    min_amount_wei: "1000"

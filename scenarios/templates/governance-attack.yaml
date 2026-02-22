@@ -1,0 +1,19 @@
+id: governance-attack-template
+class_type: governance_attack
+chain: ethereum
+rpc_env: MAINNET_RPC_URL
+block: 19750000
+target:
+  protocol: ExampleProtocol
+  contracts: ["0x0000000000000000000000000000000000000001"]
+attacker:
+  address: "0x000000000000000000000000000000000000BEEF"
+success_criteria:
+  - type: call_succeeds
+    label: malicious_proposal_execute
+steps:
+  - label: malicious_proposal_execute
+    target: "0x0000000000000000000000000000000000000001"
+    calldata: "0x"
+    value: "0"
+    expect_success: true

@@ -1,0 +1,19 @@
+id: read-only-reentrancy-template
+class_type: read_only_reentrancy
+chain: ethereum
+rpc_env: MAINNET_RPC_URL
+block: 19750000
+target:
+  protocol: ExampleProtocol
+  contracts: ["0x0000000000000000000000000000000000000001"]
+attacker:
+  address: "0x000000000000000000000000000000000000BEEF"
+success_criteria:
+  - type: call_succeeds
+    label: readonly_reenter
+steps:
+  - label: readonly_reenter
+    target: "0x0000000000000000000000000000000000000001"
+    calldata: "0x"
+    value: "0"
+    expect_success: true

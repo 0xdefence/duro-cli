@@ -1,0 +1,8 @@
+{
+  "access-control-template": "confirmed",
+  "oracle-manipulation-template": "inconclusive",
+  "read-only-reentrancy-template": "confirmed",
+  "signature-approval-template": "confirmed",
+  "upgradeable-proxy-template": "confirmed",
+  "governance-attack-template": "confirmed"
+}

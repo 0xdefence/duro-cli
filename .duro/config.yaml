@@ -1,0 +1,4 @@
+profile: local
+rpc_env_var: MAINNET_RPC_URL
+default_chain: ethereum
+default_timeout_sec: 300
