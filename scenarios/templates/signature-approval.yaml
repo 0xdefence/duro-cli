@@ -1,3 +1,5 @@
+# DURO TEMPLATE: Signature / Approval Abuse
+# Goal: validate replay/permit/approval misuse paths.
 id: signature-approval-template
 class_type: signature_approval
 chain: ethereum

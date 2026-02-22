@@ -1,3 +1,6 @@
+# DURO TEMPLATE: Access Control Exploit
+# Goal: verify whether privileged functionality can be reached by an unauthorized actor.
+# Edit target contract + calldata for your protocol.
 id: access-control-template
 class_type: access_control
 chain: ethereum

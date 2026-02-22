@@ -1,3 +1,5 @@
+# DURO TEMPLATE: Upgradeable Proxy Abuse
+# Goal: test unauthorized upgrade/admin control paths.
 id: upgradeable-proxy-template
 class_type: upgradeable_proxy
 chain: ethereum

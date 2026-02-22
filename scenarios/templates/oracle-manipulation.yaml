@@ -1,3 +1,6 @@
+# DURO TEMPLATE: Oracle Manipulation
+# Goal: check if manipulated oracle inputs can lead to profitable state changes.
+# Set realistic token/value assumptions and criteria.
 id: oracle-manipulation-template
 class_type: oracle_manipulation
 chain: ethereum

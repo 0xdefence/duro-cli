@@ -1,3 +1,5 @@
+# DURO TEMPLATE: Governance Attack
+# Goal: validate malicious proposal/vote/execute exploitability.
 id: governance-attack-template
 class_type: governance_attack
 chain: ethereum

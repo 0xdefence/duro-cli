@@ -15,10 +15,10 @@ from .core import (
 )
 from .ui import err, ok, section, show_banner, warn
 
-app = typer.Typer(help="DURO CLI — DeFi exploit confirmation on forked state")
-scenario_app = typer.Typer(help="Scenario utilities")
-report_app = typer.Typer(help="Report utilities")
-llm_app = typer.Typer(help="LLM provider utilities")
+app = typer.Typer(help="DURO CLI — check if a smart-contract issue is actually exploitable")
+scenario_app = typer.Typer(help="Validate and inspect scenario files")
+report_app = typer.Typer(help="Export human-readable and JSON reports")
+llm_app = typer.Typer(help="LLM provider checks and stats")
 
 app.add_typer(scenario_app, name="scenario")
 app.add_typer(report_app, name="report")

@@ -1,3 +1,5 @@
+# DURO TEMPLATE: Read-Only Reentrancy
+# Goal: test if callback/read-order issues can be exploited without direct state writes.
 id: read-only-reentrancy-template
 class_type: read_only_reentrancy
 chain: ethereum
