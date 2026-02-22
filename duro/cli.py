@@ -46,12 +46,16 @@ def init():
 
 
 @app.command()
-def doctor(json_out: bool = typer.Option(False, "--json", help="JSON output")):
+def doctor(
+    json_out: bool = typer.Option(False, "--json", help="JSON output"),
+    skip_rpc: bool = typer.Option(False, "--skip-rpc", help="Skip RPC connectivity check"),
+):
     ensure_layout()
-    checks = doctor_checks()
+    checks = doctor_checks(skip_rpc=skip_rpc)
     if json_out:
         print(json.dumps(checks, indent=2))
-        raise typer.Exit(code=0 if all(checks.values()) else 1)
+        healthy = all(v is True or v == "skipped" for v in checks.values())
+        raise typer.Exit(code=0 if healthy else 1)
 
     section("DURO DOCTOR")
     for k, v in checks.items():
@@ -60,7 +64,8 @@ def doctor(json_out: bool = typer.Option(False, "--json", help="JSON output")):
         else:
             err(f"{k}: failed")
 
-    if all(checks.values()):
+    healthy = all(v is True or v == "skipped" for v in checks.values())
+    if healthy:
         ok("Status: HEALTHY")
         raise typer.Exit(code=0)
     else:

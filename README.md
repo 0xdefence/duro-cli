@@ -183,6 +183,8 @@ Each run stores artifacts under `runs/<run_id>/` and `reports/<run_id>/`:
 - LLM provider stats command: `duro llm stats`
 - 6 scenario templates for core DeFi classes in `scenarios/templates/`
 - CI replay suite workflow: `.github/workflows/replay.yml`
+  - `replay-smoke` runs without RPC (`duro doctor --skip-rpc`)
+  - `replay-public-rpc` runs when `MAINNET_RPC_URL` GitHub secret exists
 
 ## Project status
 

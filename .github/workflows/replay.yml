@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  replay:
+  replay-smoke:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -24,8 +24,36 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
-      - name: Doctor
+      - name: Doctor (no network dependency)
+        run: duro doctor --json --skip-rpc
+
+      - name: Replay suite (mock provider)
+        run: python scripts/ci_replay_check.py
+
+  replay-public-rpc:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.MAINNET_RPC_URL != '' }}
+    env:
+      MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install DURO
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Doctor (with RPC)
         run: duro doctor --json
 
-      - name: Replay suite
+      - name: Replay suite (mock provider)
         run: python scripts/ci_replay_check.py

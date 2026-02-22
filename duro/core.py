@@ -67,14 +67,17 @@ def _chain_id_from_rpc(rpc_url: str) -> int | None:
         return None
 
 
-def doctor_checks() -> dict:
+def doctor_checks(skip_rpc: bool = False) -> dict:
     ensure_layout()
     out = {}
     out["forge"] = shutil.which("forge") is not None
     out["anvil"] = shutil.which("anvil") is not None
     rpc = os.getenv("MAINNET_RPC_URL")
     out["rpc_env_set"] = bool(rpc)
-    out["rpc_reachable"] = bool(_chain_id_from_rpc(rpc)) if rpc else False
+    if skip_rpc:
+        out["rpc_reachable"] = "skipped"
+    else:
+        out["rpc_reachable"] = bool(_chain_id_from_rpc(rpc)) if rpc else False
     out["writable_runs"] = os.access(RUNS, os.W_OK)
     out["writable_reports"] = os.access(REPORTS, os.W_OK)
     return out
