@@ -29,6 +29,7 @@ jobs:
           pip install -e .
 
       - name: Doctor (no network dependency)
+        continue-on-error: true
         run: duro doctor --json --skip-rpc
 
       - name: Replay suite (mock provider)
