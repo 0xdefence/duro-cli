@@ -35,15 +35,23 @@ def main():
         if not run_id:
             raise RuntimeError(f"unable to parse run id from output:\n{out}")
         result_path = ROOT / "runs" / run_id / "result.json"
+        if not result_path.exists():
+            failures.append((sc.stem, "result.json exists", "missing", run_id))
+            continue
+
         data = json.loads(result_path.read_text())
-        got = data.get("classification")
-        exp = EXPECTED.get(data.get("scenario_id"))
-        if exp is not None and got != exp:
+        got_raw = data.get("classification")
+        got = str(got_raw or "").strip().lower()
+        exp_raw = EXPECTED.get(data.get("scenario_id"))
+        exp = str(exp_raw or "").strip().lower()
+
+        if exp and got != exp:
             failures.append((data.get("scenario_id"), exp, got, run_id))
 
     if failures:
         for f in failures:
             print(f"FAIL scenario={f[0]} expected={f[1]} got={f[2]} run_id={f[3]}")
+        print(f"Replay check failed: {len(failures)} mismatch(es)")
         sys.exit(1)
 
     print("Replay check passed")
