@@ -3,6 +3,10 @@ name: replay-suite
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   replay-smoke:
@@ -32,7 +36,6 @@ jobs:
 
   replay-public-rpc:
     runs-on: ubuntu-latest
-    if: ${{ secrets.MAINNET_RPC_URL != '' }}
     env:
       MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
     steps:
@@ -52,8 +55,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
+      - name: Skip when MAINNET_RPC_URL is not set
+        if: ${{ env.MAINNET_RPC_URL == '' }}
+        run: echo "MAINNET_RPC_URL not set; skipping replay-public-rpc"
+
       - name: Doctor (with RPC)
+        if: ${{ env.MAINNET_RPC_URL != '' }}
         run: duro doctor --json
 
       - name: Replay suite (mock provider)
+        if: ${{ env.MAINNET_RPC_URL != '' }}
         run: python scripts/ci_replay_check.py
