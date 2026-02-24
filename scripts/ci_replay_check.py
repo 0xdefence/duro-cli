@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -20,6 +21,7 @@ def run(cmd):
 
 def main():
     failures = []
+    has_rpc = bool(os.getenv("MAINNET_RPC_URL"))
 
     for sc in sorted(TEMPLATE_DIR.glob("*.yaml")):
         # run command
@@ -44,6 +46,10 @@ def main():
         got = str(got_raw or "").strip().lower()
         exp_raw = EXPECTED.get(data.get("scenario_id"))
         exp = str(exp_raw or "").strip().lower()
+
+        # In smoke CI without MAINNET_RPC_URL, infra failures are expected.
+        if not has_rpc and got == "infra_failed":
+            continue
 
         if exp and got != exp:
             failures.append((data.get("scenario_id"), exp, got, run_id))
