@@ -25,7 +25,7 @@ jobs:
       - name: Preflight (mock)
         run: DURO_PROVIDER=mock python scripts/preflight_check.py
       - name: Unit tests
-        run: pytest -q tests/test_hardening.py tests/test_contracts.py tests/test_contract_fixture.py
+        run: pytest -q tests/test_hardening.py tests/test_contracts.py tests/test_contract_fixture.py tests/test_cli_enforcement.py
       - name: Validate output contract fixture
         run: PYTHONPATH=. python scripts/validate_output_contract.py scenarios/fixtures/expected.json
       - name: Safe wrapper smoke
