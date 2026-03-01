@@ -1,3 +1,4 @@
+from duro.emit import emit_json_contract
 import json
 from pathlib import Path
 
