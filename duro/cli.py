@@ -12,6 +12,7 @@ from .core import (
     doctor_checks,
     ensure_layout,
     export_report,
+    rerun_consistency_check,
     run_scenario,
     verify_run,
 )
@@ -97,6 +98,39 @@ def run_cmd(
     run_id = run_scenario(path, llm_provider=llm_provider, llm_model=llm_model, fallback_provider=llm_fallback)
     ok(f"Run completed: {run_id}")
     print(f"Next: duro report export {run_id}")
+
+
+@app.command("rerun-check")
+def rerun_check_cmd(
+    path: str,
+    n: int = typer.Option(3, "--n", help="Number of repeated runs (>=2)"),
+    llm_provider: str = typer.Option("mock", "--llm-provider", help="mock|openai|gemini|ollama|anthropic|openrouter|lmstudio"),
+    llm_model: str = typer.Option("", "--llm-model", help="Provider model name"),
+    llm_fallback: str = typer.Option("", "--llm-fallback", help="Fallback provider"),
+    json_out: bool = typer.Option(False, "--json", help="JSON output"),
+):
+    try:
+        out = rerun_consistency_check(
+            path,
+            n=n,
+            llm_provider=llm_provider,
+            llm_model=llm_model,
+            fallback_provider=llm_fallback,
+        )
+    except ValueError as e:
+        err(str(e))
+        raise typer.Exit(code=2)
+
+    if json_out:
+        print(json.dumps(out, indent=2))
+        return
+
+    section("DURO RERUN CONSISTENCY")
+    print(f"scenario: {out['scenario_path']}")
+    print(f"runs: {out['runs']}")
+    print(f"distribution: {out['distribution']}")
+    print(f"majority: {out['majority_classification']} ({out['majority_ratio']:.2f})")
+    print(f"avg_confidence: {out['confidence_mean']:.2f}")
 
 
 @app.command()

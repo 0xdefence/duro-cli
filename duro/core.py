@@ -401,6 +401,47 @@ def diff_runs(run_a: str, run_b: str) -> dict[str, Any]:
     }
 
 
+def rerun_consistency_check(
+    path: str,
+    n: int = 3,
+    llm_provider: str = "mock",
+    llm_model: str = "",
+    fallback_provider: str = "",
+) -> dict[str, Any]:
+    if n < 2:
+        raise ValueError("n must be >= 2")
+
+    run_ids: list[str] = []
+    classes: list[str] = []
+    confidences: list[float] = []
+
+    for _ in range(n):
+        rid = run_scenario(path, llm_provider=llm_provider, llm_model=llm_model, fallback_provider=fallback_provider)
+        run_ids.append(rid)
+        data = json.loads((RUNS / rid / "result.json").read_text())
+        classes.append(str(data.get("classification", "unknown")))
+        confidences.append(float(data.get("confidence", 0.0)))
+
+    dist: dict[str, int] = {}
+    for c in classes:
+        dist[c] = dist.get(c, 0) + 1
+
+    majority_class = max(dist, key=dist.get)
+    majority_ratio = dist[majority_class] / n
+    confidence_mean = sum(confidences) / n if n else 0.0
+
+    return {
+        "scenario_path": path,
+        "runs": n,
+        "run_ids": run_ids,
+        "classifications": classes,
+        "distribution": dist,
+        "majority_classification": majority_class,
+        "majority_ratio": majority_ratio,
+        "confidence_mean": confidence_mean,
+    }
+
+
 def run_scenario(path: str, llm_provider: str = "mock", llm_model: str = "", fallback_provider: str = "") -> str:
     raw = yaml.safe_load(Path(path).read_text())
     scenario = Scenario.model_validate(raw)

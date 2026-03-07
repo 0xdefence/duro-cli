@@ -95,6 +95,7 @@ Artifacts under `runs/<run_id>/` and `reports/<run_id>/`:
 duro init
 duro doctor [--skip-rpc] [--json]
 duro run <scenario.yaml> [--llm-provider ... --llm-model ... --llm-fallback ...]
+duro rerun-check <scenario.yaml> --n 3 [--llm-provider ...]
 duro show <run_id>
 duro report export <run_id>
 duro verify <run_id>
