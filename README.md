@@ -83,6 +83,7 @@ Artifacts under `runs/<run_id>/` and `reports/<run_id>/`:
 - `trace.summary.log`
 - generated harness (`.t.sol`)
 - `safety.json`
+- `trace.summary.log`
 - `summary.md` / `summary.json`
 - `manifest.sha256` (integrity)
 
@@ -149,6 +150,8 @@ In `scenarios/templates/`:
 - Reason-code classification
 - Provider fallback + telemetry
 - Integrity manifest + verification
+- Trace summary artifact extraction (`trace.summary.log`)
+- Invariant evaluation scaffold (`invariants` in scenario)
 - CI replay workflows:
   - `replay-smoke` (no RPC dependency)
   - `replay-public-rpc` (uses `MAINNET_RPC_URL` secret)

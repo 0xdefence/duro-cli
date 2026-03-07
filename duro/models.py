@@ -16,3 +16,4 @@ class Scenario(BaseModel):
     attacker: Dict[str, str] = Field(default_factory=dict)
     success_criteria: List[dict] = Field(default_factory=list)
     steps: List[dict] = Field(default_factory=list)
+    invariants: List[dict] = Field(default_factory=list)

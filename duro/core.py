@@ -261,6 +261,58 @@ def extract_trace_summary(stdout: str, stderr: str, max_lines: int = 40) -> list
     return picked[:max_lines]
 
 
+def evaluate_invariants(invariants: list[dict[str, Any]], context: dict[str, Any]) -> dict[str, Any]:
+    """Evaluate lightweight invariant checks from scenario metadata.
+
+    Supported types:
+    - classification_is: expects {"expected": "confirmed"}
+    - steps_max: expects {"max": 30}
+    - safety_ok: no params, asserts safety.ok is True
+    """
+    if not invariants:
+        return {"defined": 0, "passed": 0, "failed": 0, "results": []}
+
+    out = []
+    for idx, inv in enumerate(invariants, start=1):
+        itype = str(inv.get("type", "")).strip()
+        label = str(inv.get("label") or f"inv_{idx}")
+        passed = False
+        detail = ""
+
+        if itype == "classification_is":
+            expected = str(inv.get("expected", ""))
+            got = str(context.get("classification", ""))
+            passed = got == expected
+            detail = f"expected={expected} got={got}"
+        elif itype == "steps_max":
+            max_steps = int(inv.get("max", 30))
+            got = int(context.get("steps_count", 0))
+            passed = got <= max_steps
+            detail = f"max={max_steps} got={got}"
+        elif itype == "safety_ok":
+            got = bool((context.get("safety") or {}).get("ok"))
+            passed = got is True
+            detail = f"safety_ok={got}"
+        else:
+            passed = False
+            detail = f"unsupported_invariant_type={itype}"
+
+        out.append({
+            "label": label,
+            "type": itype,
+            "passed": passed,
+            "detail": detail,
+        })
+
+    failed = sum(1 for r in out if not r["passed"])
+    return {
+        "defined": len(out),
+        "passed": len(out) - failed,
+        "failed": failed,
+        "results": out,
+    }
+
+
 def diff_runs(run_a: str, run_b: str) -> dict[str, Any]:
     pa = RUNS / run_a / "result.json"
     pb = RUNS / run_b / "result.json"
@@ -356,6 +408,15 @@ def run_scenario(path: str, llm_provider: str = "mock", llm_model: str = "", fal
 
     confidence, breakdown = _confidence(classification, code, len(step_list), llm_meta.get("attempts", 1))
 
+    invariants_eval = evaluate_invariants(
+        getattr(scenario, "invariants", []) or [],
+        {
+            "classification": classification,
+            "steps_count": len(step_list),
+            "safety": {"ok": safe_ok, "errors": safety_errors},
+        },
+    )
+
     result = {
         "run_id": run_id,
         "scenario_id": scenario.id,
@@ -370,6 +431,7 @@ def run_scenario(path: str, llm_provider: str = "mock", llm_model: str = "", fal
         "safety": {"ok": safe_ok, "errors": safety_errors},
         "confidence": confidence,
         "confidence_breakdown": breakdown,
+        "invariants": invariants_eval,
         "trace_summary": trace_summary,
         "artifacts": {
             "harness": str(test_file),
@@ -422,6 +484,11 @@ def export_report(run_id: str):
 ## Safety
 - OK: `{data.get('safety',{}).get('ok')}`
 - Errors: `{data.get('safety',{}).get('errors')}`
+
+## Invariants
+- Defined: `{data.get('invariants',{}).get('defined', 0)}`
+- Passed: `{data.get('invariants',{}).get('passed', 0)}`
+- Failed: `{data.get('invariants',{}).get('failed', 0)}`
 
 ## Trace Summary (excerpt)
 ```
