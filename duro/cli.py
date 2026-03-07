@@ -308,10 +308,14 @@ def audit_cmd(
     llm_model: str = typer.Option('', '--llm-model', help='Provider model name'),
     llm_fallback: str = typer.Option('', '--llm-fallback', help='Fallback provider'),
     max_runs: int = typer.Option(20, '--max-runs', help='Cap number of generated scenarios to execute'),
+    fail_on: str = typer.Option('', '--fail-on', help='Comma-separated gate rules, e.g. confirmed:high,confirmed:critical'),
+    json_out: bool = typer.Option(False, '--json', help='Print fused payload summary as JSON'),
 ):
     v = check_rulepack_version()
     if v.get('warning'):
         warn(v['warning'])
+
+    rules = tuple(s.strip() for s in fail_on.split(',') if s.strip())
 
     out = run_audit_from_discovery(
         findings_path=from_findings,
@@ -320,10 +324,29 @@ def audit_cmd(
         llm_model=llm_model,
         llm_fallback=llm_fallback,
         max_runs=max_runs,
+        fail_on=rules,
     )
-    ok(f"Fused audit JSON: {out['fused_json']}")
-    ok(f"Fused audit report: {out['fused_md']}")
-    print(f"scenarios_generated={len(out['generated_scenarios'])} runs_executed={len(out['run_mapping'])}")
+
+    fused = out.get('fused', {})
+    summary = fused.get('summary', {})
+
+    if json_out:
+        print(json.dumps({
+            'fused_json': out['fused_json'],
+            'fused_md': out['fused_md'],
+            'scenarios_generated': len(out['generated_scenarios']),
+            'runs_executed': len(out['run_mapping']),
+            'summary': summary,
+        }, indent=2))
+    else:
+        ok(f"Fused audit JSON: {out['fused_json']}")
+        ok(f"Fused audit report: {out['fused_md']}")
+        print(f"scenarios_generated={len(out['generated_scenarios'])} runs_executed={len(out['run_mapping'])}")
+        print(f"summary={summary}")
+
+    if summary and summary.get('gate_passed') is False:
+        err(f"audit gate failed: {summary.get('failed_rules')}")
+        raise typer.Exit(code=1)
 
 
 @app.command()

@@ -217,7 +217,19 @@ def write_fused_report(fused_payload: dict[str, Any], out_md: str | Path) -> Pat
     rows = fused_payload.get('fused_findings', [])
     rows = sorted(rows, key=lambda r: (r.get('duro_confidence') or 0), reverse=True)
 
-    lines = ['# DURO Fused Audit Report', '', '## Findings']
+    summary = fused_payload.get('summary', {})
+    lines = ['# DURO Fused Audit Report', '']
+    if summary:
+        lines.extend([
+            '## Summary',
+            f"- by_repro_status: {summary.get('by_repro_status')}",
+            f"- severity_by_repro_status: {summary.get('severity_by_repro_status')}",
+            f"- gate_passed: {summary.get('gate_passed')}",
+            f"- failed_rules: {summary.get('failed_rules')}",
+            '',
+        ])
+
+    lines.append('## Findings')
     for i, r in enumerate(rows, start=1):
         lines.append(
             f"{i}. {r.get('title')} | status={r.get('repro_status')} | duro_conf={r.get('duro_confidence')} | run={r.get('run_id')}"
@@ -236,6 +248,7 @@ def run_audit_from_discovery(
     llm_model: str = '',
     llm_fallback: str = '',
     max_runs: int = 20,
+    fail_on: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     findings_path = Path(findings_path)
     findings_payload = json.loads(findings_path.read_text())
@@ -256,6 +269,34 @@ def run_audit_from_discovery(
             mapping[sid] = rid
 
     fused = fuse_discovery_and_repro(findings_payload, mapping)
+
+    # summary + gate evaluation
+    summary: dict[str, int] = {}
+    severity_by_repro: dict[str, dict[str, int]] = {}
+    for row in fused.get('fused_findings', []):
+        rs = str(row.get('repro_status', 'not_run'))
+        sv = str(row.get('impact', 'unknown')).lower()
+        summary[rs] = summary.get(rs, 0) + 1
+        d = severity_by_repro.setdefault(rs, {})
+        d[sv] = d.get(sv, 0) + 1
+
+    fail_rules = set(fail_on or ())
+    failed_rules: list[str] = []
+    for row in fused.get('fused_findings', []):
+        rs = str(row.get('repro_status', ''))
+        sv = str(row.get('impact', '')).lower()
+        token = f"{rs}:{sv}"
+        if token in fail_rules:
+            failed_rules.append(token)
+
+    fused['summary'] = {
+        'by_repro_status': summary,
+        'severity_by_repro_status': severity_by_repro,
+        'fail_rules': sorted(fail_rules),
+        'failed_rules': sorted(set(failed_rules)),
+        'gate_passed': len(failed_rules) == 0,
+    }
+
     fused_json = write_audit_json(fused, f"{out_prefix}.json")
     fused_md = write_fused_report(fused, f"{out_prefix}.md")
 
