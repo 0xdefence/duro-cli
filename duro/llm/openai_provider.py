@@ -19,9 +19,9 @@ class OpenAIProvider(LLMProvider):
         except Exception as e:
             raise RuntimeError("openai package not installed. pip install openai") from e
 
-        key = os.getenv("OPENAI_API_KEY")
-        if not key:
-            raise RuntimeError("OPENAI_API_KEY is not set")
+        key = os.getenv("OPENAI_API_KEY", "").strip()
+        if not key or len(key) < 10:
+            raise RuntimeError("OPENAI_API_KEY is not set or appears invalid")
 
         client = OpenAI(api_key=key)
         prompt = (

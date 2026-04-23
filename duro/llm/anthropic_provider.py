@@ -18,9 +18,9 @@ class AnthropicProvider(LLMProvider):
         except Exception as e:
             raise RuntimeError("anthropic package not installed. pip install anthropic") from e
 
-        key = os.getenv("ANTHROPIC_API_KEY")
-        if not key:
-            raise RuntimeError("ANTHROPIC_API_KEY is not set")
+        key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+        if not key or len(key) < 10:
+            raise RuntimeError("ANTHROPIC_API_KEY is not set or appears invalid")
 
         client = Anthropic(api_key=key)
         prompt = (

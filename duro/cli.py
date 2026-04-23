@@ -103,6 +103,11 @@ def run_cmd(
     llm_model: str = typer.Option("", "--llm-model", help="Provider model name"),
     llm_fallback: str = typer.Option("", "--llm-fallback", help="Fallback provider"),
 ):
+    from pathlib import Path as _Path
+
+    path_resolved = _Path(path).resolve()
+    if not path_resolved.suffix == '.yaml' and not path_resolved.suffix == '.yml':
+        raise typer.BadParameter("Scenario file must be .yaml or .yml")
     run_id = run_scenario(path, llm_provider=llm_provider, llm_model=llm_model, fallback_provider=llm_fallback)
     ok(f"Run completed: {run_id}")
     print(f"Next: duro report export {run_id}")

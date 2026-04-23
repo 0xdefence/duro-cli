@@ -4,9 +4,13 @@ from pathlib import Path
 from duro.contracts import normalize_status_reason, validate_cli_output_contract
 
 
-def test_contract_validator_accepts_expected_fixture():
-    p = Path("scenarios/fixtures/expected.json")
-    payload = json.loads(p.read_text())
+def test_contract_validator_accepts_valid_cli_output():
+    payload = {
+        "status": "ok",
+        "result": {"classification": "confirmed", "confidence": 0.85},
+        "findings": [],
+        "summary": "exploit confirmed",
+    }
     issues = validate_cli_output_contract(payload)
     assert issues == []
 

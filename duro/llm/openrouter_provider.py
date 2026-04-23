@@ -14,9 +14,9 @@ class OpenRouterProvider(LLMProvider):
         self.model = model
 
     def generate_exploit_steps(self, scenario: Dict[str, Any], context: str = "") -> ExploitPlan:
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENROUTER_API_KEY is not set")
+        api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+        if not api_key or len(api_key) < 10:
+            raise RuntimeError("OPENROUTER_API_KEY is not set or appears invalid")
 
         prompt = (
             "Return ONLY valid JSON with key 'steps' (array). "

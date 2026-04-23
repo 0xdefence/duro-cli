@@ -15,6 +15,15 @@ class OllamaProvider(LLMProvider):
 
     def generate_exploit_steps(self, scenario: Dict[str, Any], context: str = "") -> ExploitPlan:
         host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+        from urllib.parse import urlparse
+        parsed = urlparse(host)
+        if parsed.scheme == "http" and parsed.hostname not in ("127.0.0.1", "localhost", "::1"):
+            import warnings
+            warnings.warn(
+                f"OLLAMA_HOST uses plaintext HTTP to non-localhost ({parsed.hostname}). "
+                "Consider using HTTPS to prevent eavesdropping.",
+                stacklevel=2,
+            )
         url = f"{host}/api/generate"
 
         prompt = (

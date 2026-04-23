@@ -11,6 +11,7 @@ from typing import Any
 import yaml
 
 from .core import run_scenario
+from .http_util import safe_urlopen
 from .discovery import discover_solidity_files, synthesize_scenarios
 
 VECTOR_DIR = Path("duro/references/attack-vectors")
@@ -32,15 +33,39 @@ def check_rulepack_version(local_version_path: str = "duro/references/VERSION") 
     local = Path(local_version_path).read_text().strip() if Path(local_version_path).exists() else "0.0.0"
     remote = None
     warning = None
+
+    # Check cache first (24-hour TTL)
+    cache_path = Path(".duro/version_check_cache.json")
+    try:
+        if cache_path.exists():
+            import time
+            cache_data = json.loads(cache_path.read_text())
+            cache_ts = cache_data.get("timestamp", 0)
+            if (time.time() - cache_ts) < 86400:  # 24 hours
+                return cache_data.get("result", {"local": local, "remote": None, "warning": None})
+    except Exception:
+        pass
+
     try:
         url = "https://raw.githubusercontent.com/0xdefence/duro-cli/main/duro/references/VERSION"
-        with urllib.request.urlopen(url, timeout=5) as r:
-            remote = r.read().decode("utf-8").strip()
+        req = urllib.request.Request(url)
+        remote = safe_urlopen(req, timeout=5).decode("utf-8").strip()
         if remote and remote != local:
             warning = f"rulepack update available: local={local} remote={remote}"
     except Exception:
         pass
-    return {"local": local, "remote": remote, "warning": warning}
+
+    result = {"local": local, "remote": remote, "warning": warning}
+
+    # Write cache
+    try:
+        import time
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps({"timestamp": time.time(), "result": result}))
+    except Exception:
+        pass
+
+    return result
 
 
 def _load_vector_prompts() -> list[tuple[str, str]]:
@@ -53,6 +78,8 @@ def _load_vector_prompts() -> list[tuple[str, str]]:
 def _bundle_for_agent(sol_files: list[Path], vector_name: str, vector_prompt: str) -> str:
     chunks = [f"# Agent Bundle: {vector_name}", "## Vector prompt", vector_prompt, "## Solidity files"]
     for sf in sol_files:
+        if sf.is_symlink():
+            continue  # Skip symlinks to prevent traversal
         chunks.append(f"\n### {sf}\n```solidity\n{sf.read_text()}\n```")
     return "\n".join(chunks)
 

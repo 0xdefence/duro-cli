@@ -15,15 +15,12 @@ class GeminiProvider(LLMProvider):
         self.model = model
 
     def generate_exploit_steps(self, scenario: Dict[str, Any], context: str = "") -> ExploitPlan:
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            raise RuntimeError("GEMINI_API_KEY (or GOOGLE_API_KEY) is not set")
+        api_key = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
+        if not api_key or len(api_key) < 10:
+            raise RuntimeError("GEMINI_API_KEY (or GOOGLE_API_KEY) is not set or appears invalid")
 
         model_enc = urllib.parse.quote(self.model, safe="")
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/{model_enc}:generateContent"
-            f"?key={urllib.parse.quote(api_key, safe='')}"
-        )
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_enc}:generateContent"
 
         prompt = (
             "Return ONLY valid JSON with key 'steps' (array). "
@@ -45,7 +42,10 @@ class GeminiProvider(LLMProvider):
         req = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": api_key,
+            },
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=120) as resp:

@@ -30,3 +30,7 @@ jobs:
         run: PYTHONPATH=. python scripts/validate_output_contract.py scenarios/fixtures/expected.json
       - name: Safe wrapper smoke
         run: DURO_PROVIDER=mock PYTHONPATH=. python scripts/duro_safe.py --help
+      - name: Run security scan (bandit)
+        run: |
+          pip install bandit
+          bandit -r duro/ -ll -ii --skip B101

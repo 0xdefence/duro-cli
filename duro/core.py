@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -10,6 +11,7 @@ from typing import Any
 
 import yaml
 
+from .http_util import safe_urlopen, validate_url_scheme
 from .llm import get_provider
 from .models import Scenario
 
@@ -46,6 +48,7 @@ def _hash_file(path: Path) -> str:
 
 def _chain_id_from_rpc(rpc_url: str) -> int | None:
     try:
+        validate_url_scheme(rpc_url, allowed_schemes=("https", "http"))
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -60,8 +63,7 @@ def _chain_id_from_rpc(rpc_url: str) -> int | None:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
+        body = json.loads(safe_urlopen(req, timeout=8).decode("utf-8"))
         return int(body.get("result", "0x0"), 16)
     except Exception:
         return None
@@ -83,9 +85,29 @@ def doctor_checks(skip_rpc: bool = False) -> dict:
     return out
 
 
+def _sanitize_error(msg: str) -> str:
+    """Remove potential API keys/secrets from error messages."""
+    msg = re.sub(r'(sk-[a-zA-Z0-9]{20,})', '***REDACTED***', msg)
+    msg = re.sub(r'(AIza[a-zA-Z0-9_-]{30,})', '***REDACTED***', msg)
+    msg = re.sub(r'(Bearer\s+[a-zA-Z0-9._-]{20,})', 'Bearer ***REDACTED***', msg)
+    msg = re.sub(r'(key=)[a-zA-Z0-9%._-]{10,}', r'\1***REDACTED***', msg)
+    return msg
+
+
 def load_scenario(path: str) -> Scenario:
     data = yaml.safe_load(Path(path).read_text())
     return Scenario.model_validate(data)
+
+
+_VALID_ETH_ADDR = re.compile(r'^0x[0-9a-fA-F]{40}$')
+
+
+def _sanitize_eth_address(addr: str, field_name: str = "address") -> str:
+    """Validate and return a sanitized Ethereum address. Raises ValueError on invalid input."""
+    addr = str(addr).strip()
+    if not _VALID_ETH_ADDR.match(addr):
+        raise ValueError(f"Invalid Ethereum address for {field_name}: {addr!r}")
+    return addr
 
 
 def validate_step_safety(steps: list[dict[str, Any]]) -> tuple[bool, list[str]]:
@@ -101,15 +123,20 @@ def validate_step_safety(steps: list[dict[str, Any]]) -> tuple[bool, list[str]]:
 
         if not lbl:
             errors.append(f"step[{i}] missing label")
-        if not (target.startswith("0x") and len(target) == 42):
-            errors.append(f"step[{i}] invalid target")
+        if not re.match(r'^0x[0-9a-fA-F]{40}$', target):
+            errors.append(f"step[{i}] invalid target address")
         if not (calldata.startswith("0x") and all(c in "0123456789abcdefABCDEF" for c in calldata[2:])):
             errors.append(f"step[{i}] invalid calldata hex")
-        if any(tok in json.dumps(st).lower() for tok in ["subprocess", "os.system", "curl ", "rm -rf"]):
+        FORBIDDEN_TOKENS = [
+            "subprocess", "os.system", "os.popen", "curl ", "rm -rf",
+            "exec(", "eval(", "__import__", "import os", "import sys",
+            "selfdestruct", "delegatecall", "assembly",
+        ]
+        if any(tok in json.dumps(st).lower() for tok in FORBIDDEN_TOKENS):
             errors.append(f"step[{i}] contains forbidden token")
         try:
-            if int(value) > 10**22:
-                errors.append(f"step[{i}] value too high")
+            if int(value) > 10**20:
+                errors.append(f"step[{i}] value too high (max 10**20)")
         except Exception:
             errors.append(f"step[{i}] value is not integer-like")
 
@@ -214,6 +241,7 @@ def create_harness(run_dir: Path, scenario: Scenario, steps: list[dict] | None =
     pre_reads = []
     for sym, addr in scenario.tokens.items():
         k = _s(sym)
+        addr = _sanitize_eth_address(addr, f"token.{sym}")
         token_consts.append(f"address constant TOKEN_{k} = {addr};")
         pre_reads.append(f"uint256 pre_{k} = IERC20(TOKEN_{k}).balanceOf(ATTACKER);")
 
@@ -251,17 +279,28 @@ def create_harness(run_dir: Path, scenario: Scenario, steps: list[dict] | None =
         value = st.get("value", "0")
         expect_success = bool(st.get("expect_success", True))
 
+        target = _sanitize_eth_address(target, f"step[{i}].target")
+
+        calldata_hex = str(calldata).replace("0x", "")
+        if not re.match(r'^[0-9a-fA-F]*$', calldata_hex):
+            raise ValueError(f"Invalid calldata hex for step {label}")
+
         if f"bool success_{label} = false;" not in declared_success:
             declared_success.append(f"bool success_{label} = false;")
 
         exec_lines.append(
-            f"(success_{label}, ) = address({target}).call{{value: {value}}}(hex\"{str(calldata).replace('0x','')}\");"
+            f"(success_{label}, ) = address({target}).call{{value: {value}}}(hex\"{calldata_hex}\");"
         )
         if expect_success:
             exec_lines.append(f'assertTrue(success_{label}, "step:{label}:expected_success");')
 
     if not exec_lines:
         exec_lines.append("// no exploit steps provided")
+
+    attacker_addr = _sanitize_eth_address(
+        scenario.attacker.get("address", "0x000000000000000000000000000000000000BEEF"),
+        "attacker.address"
+    )
 
     test_file = test_dir / f"{scenario.id.replace('-', '_')}.t.sol"
     test_file.write_text(
@@ -273,7 +312,7 @@ interface IERC20 {{
 }}
 
 contract DuroScenarioTest {{
-    address constant ATTACKER = {scenario.attacker.get("address", "0x000000000000000000000000000000000000BEEF")};
+    address constant ATTACKER = {attacker_addr};
     {' '.join(token_consts)}
 
     function assertTrue(bool cond, string memory why) internal pure {{
@@ -445,7 +484,7 @@ def rerun_consistency_check(
 def run_scenario(path: str, llm_provider: str = "mock", llm_model: str = "", fallback_provider: str = "") -> str:
     raw = yaml.safe_load(Path(path).read_text())
     scenario = Scenario.model_validate(raw)
-    run_id = str(uuid.uuid4())[:8]
+    run_id = str(uuid.uuid4())
     run_dir = RUNS / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -481,9 +520,10 @@ def run_scenario(path: str, llm_provider: str = "mock", llm_model: str = "", fal
                     }
                 )
                 (run_dir / "llm.raw.txt").write_text(plan.raw)
+                (run_dir / "llm.raw.txt").chmod(0o600)
                 break
             except Exception as e:
-                llm_meta["error"] = str(e)
+                llm_meta["error"] = _sanitize_error(str(e))
 
     safe_ok, safety_errors = validate_step_safety(step_list)
     (run_dir / "safety.json").write_text(json.dumps({"ok": safe_ok, "errors": safety_errors}, indent=2))
