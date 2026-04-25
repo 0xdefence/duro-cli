@@ -16,7 +16,7 @@ from .core import (
     run_scenario,
     verify_run,
 )
-from .ui import err, ok, section, show_banner, warn
+from .ui import bullet, err, muted, ok, section, show_welcome, warn
 from .discovery import synthesize_scenarios, write_discovery_bundle
 from .orchestration import (
     check_rulepack_version,
@@ -42,7 +42,14 @@ def main(
     no_banner: bool = typer.Option(False, "--no-banner", help="Disable ASCII banner"),
 ):
     if ctx.invoked_subcommand not in [None] and not no_banner:
-        show_banner()
+        show_welcome()
+
+
+@app.command("chat")
+def chat_cmd():
+    """Launch interactive NLP-driven REPL."""
+    from .chat import launch_repl
+    launch_repl()
 
 
 @app.command()
